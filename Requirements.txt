@@ -14,5 +14,7 @@ biopython>=1.81
 httpx>=0.24.0
 
 # 3D Visualization Component
-streamlit-molstar>=0.5.0
+streamlit-molstar==0.4.21
 altair>=5.0.0
+fpdf2>=2.7.0
+py3Dmol>=2.0.0

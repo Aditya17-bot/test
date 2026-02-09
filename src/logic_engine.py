@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from Bio.PDB import PDBParser
 from sklearn.cluster import DBSCAN
 import os
+import re
 
 # FUNCTION: load_rare_disease_catalog
 # Purpose: Parses the Orphanet XML file to create a searchable map of rare diseases and their primary associated genes.
@@ -37,7 +38,7 @@ def load_rare_disease_catalog(xml_path):
 def get_uniprot_id(gene_symbol):
     url = f"https://rest.uniprot.org/uniprotkb/search?query=gene:{gene_symbol} AND organism_id:9606&format=json"
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10, verify=False)
         response.raise_for_status()
         data = response.json()
         
@@ -46,6 +47,22 @@ def get_uniprot_id(gene_symbol):
         return None
     except Exception:
         return None
+
+
+def resolve_uniprot_id(gene_or_uniprot):
+    """
+    Resolve a gene symbol or UniProt accession to a UniProt ID.
+    If the input already looks like a UniProt ID, return it as-is.
+    """
+    if not gene_or_uniprot:
+        return None
+
+    token = gene_or_uniprot.strip().upper()
+    uniprot_pattern = r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]{2}[A-Z0-9]{2}[0-9])$"
+    if re.match(uniprot_pattern, token):
+        return token
+
+    return get_uniprot_id(token)
 
 # FUNCTION: get_af_structure_url
 # Purpose: Uses the AlphaFold API to find the REAL current download link for a protein.
@@ -118,6 +135,31 @@ def get_protein_anomalies_smart(uniprot_id, file_path):
         st.error(f"Error reading compressed file: {e}")
         return pd.DataFrame()
 
+
+def get_protein_anomalies_cached(uniprot_id, file_path, cache_dir="data/cache"):
+    """
+    Disk cache for per-protein AlphaMissense slices to avoid re-scanning the TSV.
+    """
+    if not uniprot_id:
+        return pd.DataFrame()
+
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_path = os.path.join(cache_dir, f"{uniprot_id}.csv")
+
+    try:
+        if os.path.exists(cache_path):
+            return pd.read_csv(cache_path)
+    except Exception:
+        pass
+
+    df = get_protein_anomalies_smart(uniprot_id, file_path)
+    if not df.empty:
+        try:
+            df.to_csv(cache_path, index=False)
+        except Exception:
+            pass
+    return df
+
 # UPDATED FUNCTION: detect_structural_hotspots
 # Change the input from 'pdb_url' to 'local_pdb_path' for better performance
 # Purpose: Extracts 3D coordinates from a PDB file and applies DBSCAN clustering to identify physical "hotspots".
@@ -182,4 +224,41 @@ def download_pdb_locally(url, uniprot_id):
     except Exception as e:
         print(f"CRITICAL ERROR during download: {e}")
         return None
+
+
+def extract_plddt_from_pdb(local_pdb_path):
+    """
+    Extract per-residue pLDDT from the B-factor field of an AlphaFold PDB.
+    Returns a DataFrame with residue_num and plddt columns.
+    """
+    if not local_pdb_path or not os.path.exists(local_pdb_path):
+        return pd.DataFrame(columns=["residue_num", "plddt"])
+
+    try:
+        parser = PDBParser(QUIET=True)
+        structure = parser.get_structure("protein", local_pdb_path)
+        model = structure[0]
+
+        # Prefer chain A if present, otherwise use the first chain
+        chain = model["A"] if "A" in model else next(model.get_chains())
+
+        rows = []
+        for residue in chain.get_residues():
+            if "CA" not in residue:
+                continue
+            res_id = residue.get_id()
+            if res_id[0] != " ":
+                continue
+            res_num = int(res_id[1])
+            b_factor = float(residue["CA"].get_bfactor())
+            rows.append({"residue_num": res_num, "plddt": b_factor})
+
+        if not rows:
+            return pd.DataFrame(columns=["residue_num", "plddt"])
+
+        df = pd.DataFrame(rows)
+        df = df.sort_values("residue_num").drop_duplicates("residue_num")
+        return df
+    except Exception:
+        return pd.DataFrame(columns=["residue_num", "plddt"])
     
