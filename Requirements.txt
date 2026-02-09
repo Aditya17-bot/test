@@ -1,0 +1,16 @@
+# Web Framework and UI
+streamlit>=1.30.0
+fastapi>=0.100.0
+uvicorn>=0.23.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+requests>=2.31.0
+
+# Bioinformatics and AI Integration
+biopython>=1.81
+httpx>=0.24.0
+
+# 3D Visualization Component
+streamlit-molstar>=0.5.0
