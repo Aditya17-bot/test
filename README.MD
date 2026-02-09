@@ -7,9 +7,9 @@ While standard tools provide 1D pathogenicity scores, this platform introduces *
 
 ## Team Members
 - **[Moinuddin Hasan Raichur Mohammed]** - [Role/Contribution]
-- **[Aditya The Great]** - [Role/Contribution]
+- **[Aditya The Sridhar]** - [Role/Contribution]
 - **[Aaditya Tripathi]** - [Role/Contribution]
-- **[Gouree Shankar]** - [Role/Contribution]
+- **[Goureesankar s nair]** - [Role/Contribution]
 
 ## Core Workflow
 1. **Input**: User provides a Gene Symbol (e.g., *ALS2*) or a list of missense variants.
