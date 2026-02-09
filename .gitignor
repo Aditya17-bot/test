@@ -1,0 +1,33 @@
+# --- Project Specific Temporaries ---
+temp_pdb/
+*.pdb
+*.mmcif
+
+# --- Large Data Files (GitHub limit is 100MB) ---
+# We ignore the raw data but keep the folder structure
+data/raw/*
+!data/raw/.gitkeep
+
+# --- Python Virtual Environments ---
+.venv/
+venv/
+env/
+ENV/
+bin/
+lib/
+include/
+pyvenv.cfg
+
+# --- Python Cache ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- IDE and OS Files ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Streamlit Temporaries ---
+.streamlit/config.toml
