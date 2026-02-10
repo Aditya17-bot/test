@@ -1,0 +1,18 @@
+Rare-Disease Structural Anomaly Detector — Knowledge Base
+
+This app visualizes protein structural risk signals from AlphaMissense and AlphaFold.
+
+Key concepts:
+- Anomaly Score: AlphaMissense pathogenicity score per variant (0 to 1). Higher implies higher predicted risk.
+- Instability Plot (2D): per-residue average anomaly score along the sequence.
+- Model Confidence (pLDDT): per-residue confidence from AlphaFold PDB B-factors (0 to 100).
+- Hotspots: clusters of high-risk residues that are close in 3D space (DBSCAN on C-alpha coordinates).
+
+How to interpret:
+- Tall peaks in the Instability Plot show residues with high predicted impact.
+- pLDDT indicates confidence; low pLDDT regions are less reliable structurally.
+- Hotspots indicate spatial grouping of risky residues, not just sequence proximity.
+
+Limitations:
+- These are research predictions, not clinical diagnostics.
+- Visual overlays may be used to emphasize regions of interest.

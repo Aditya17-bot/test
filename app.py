@@ -17,6 +17,14 @@ from src.logic_engine import (
     download_pdb_locally,
     extract_plddt_from_pdb,
 )
+from src.agent import (
+    ensure_knowledge_base,
+    get_knowledge_mtime_key,
+    build_knowledge_index,
+    retrieve_docs,
+    build_prompt,
+    call_ollama,
+)
 
 st.set_page_config(page_title="Structural Anomaly Detector", layout="wide")
 
@@ -27,6 +35,7 @@ st.sidebar.header("Search Gateway")
 demo_mode = st.sidebar.checkbox("Demo mode (instant)", value=False)
 use_cache = st.sidebar.checkbox("Use cached anomalies", value=True)
 simulate_hotspot = st.sidebar.checkbox("Simulate hotspot (preview)", value=False)
+ollama_model = st.sidebar.text_input("LLM Model (Ollama)", value="llama3.1")
 
 try:
     disease_map = load_rare_disease_catalog("data/references/en_product6.xml")
@@ -51,6 +60,11 @@ compare_btn = st.sidebar.button("Run Comparison")
 high_risk_threshold = 0.6
 dbscan_eps = 10.0
 dbscan_min_samples = 3
+
+
+@st.cache_resource
+def load_knowledge_index(version_key: str):
+    return build_knowledge_index()
 
 
 def get_cluster_palette() -> List[str]:
@@ -511,6 +525,21 @@ if run_btn:
                 r_col2.metric("Instability Index", f"{report['instability_index']:.3f}")
                 r_col3.metric("Anomaly Clusters", report["anomaly_clusters"])
 
+                anomaly_count = int(
+                    (protein_df["am_pathogenicity"] > high_risk_threshold).sum()
+                )
+                hotspot_count = (
+                    int(hotspots["residue_num"].nunique()) if not hotspots.empty else 0
+                )
+                mean_plddt = (
+                    float(plddt_df["plddt"].mean()) if not plddt_df.empty else 0.0
+                )
+                st.session_state["last_run_context"] = (
+                    f"Gene symbol: {gene_symbol}; UniProt: {uid}; "
+                    f"anomaly_count={anomaly_count}; hotspot_count={hotspot_count}; "
+                    f"mean_pLDDT={mean_plddt:.1f}."
+                )
+
                 st.subheader("Export Report")
                 st.download_button(
                     "Download JSON",
@@ -526,3 +555,38 @@ if run_btn:
                 )
 else:
     st.info("Select a disease or enter a gene symbol and click 'Run Anomaly Detection'.")
+
+st.markdown("---")
+st.subheader("Protein Agent (Offline)")
+ensure_knowledge_base()
+
+if "agent_msgs" not in st.session_state:
+    st.session_state["agent_msgs"] = [
+        {"role": "assistant", "content": "Ask me about the protein, hotspots, or plots."}
+    ]
+
+for msg in st.session_state["agent_msgs"]:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
+
+user_query = st.chat_input("Ask a question about this protein")
+if user_query:
+    st.session_state["agent_msgs"].append({"role": "user", "content": user_query})
+    with st.chat_message("user"):
+        st.write(user_query)
+
+    version_key = get_knowledge_mtime_key()
+    vectorizer, matrix, docs = load_knowledge_index(version_key)
+    context_docs = retrieve_docs(user_query, vectorizer, matrix, docs, top_k=3)
+    run_context = st.session_state.get("last_run_context", "No run executed yet.")
+    prompt = build_prompt(user_query, context_docs, run_context)
+    answer = call_ollama(prompt, model=ollama_model)
+
+    with st.chat_message("assistant"):
+        st.write(answer)
+        if context_docs:
+            with st.expander("Sources used"):
+                for doc in context_docs:
+                    st.write(f"- {doc['id']}")
+
+    st.session_state["agent_msgs"].append({"role": "assistant", "content": answer})

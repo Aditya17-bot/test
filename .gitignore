@@ -31,3 +31,6 @@ Thumbs.db
 
 # --- Streamlit Temporaries ---
 .streamlit/config.toml
+
+# --- Generated Knowledge PDFs ---
+knowledge/*.pdf
