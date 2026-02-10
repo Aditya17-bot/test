@@ -407,13 +407,6 @@ if run_btn:
                     if hotspots.empty:
                         st.info("No hotspots detected at the current threshold.")
                     else:
-                        if simulated_hotspots:
-                            with st.expander("Simulation note"):
-                                st.info("Showing simulated hotspots (preview only).")
-                        if deformed_pdb_text:
-                            with st.expander("Visualization note"):
-                                st.info("Overlay shows a visual scenario, not a physical simulation.")
-                        st.success(f"Anomalies detected for {gene_symbol}.")
                         cluster_count = hotspots[hotspots["cluster_id"] >= 0][
                             "residue_num"
                         ].nunique()
